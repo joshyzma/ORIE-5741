@@ -5,45 +5,42 @@ from cvxopt import solvers as cvxopt_solvers
 from scipy.spatial.distance import cdist
 
 def solve_SVM_primal(x, y, regularization=None):
-    """ solve the primal problem of SVM
+    """Solve the primal problem of SVM
     :param x: dataset x
     :param y: dataset y
-    :pram regularization: the C
+    :param regularization: the C
     :return w: the weights
     :return b: the bias
     """
     N, m = x.shape
 
-    # TODO Q2(a):
-    # step 1: convert the input so we can get offset
-    # TODO: pad the input
-    pad = np.concatenate((x, np.ones((N,1))), axis=1)
-    y = -y.reshape(-1, 1)
+    # Step 1: Convert the input so we can get offset
+    pad = np.concatenate((x, np.ones((N, 1))), axis=1)
+    y = y.reshape(-1, 1)
 
-    # step 2: formalize the problem
-    # TODO: prepare input for the cvxopt solver
-
-    # tutorial: https://courses.csail.mit.edu/6.867/wiki/images/a/a7/Qp-cvxopt.pdf
+    # Step 2: Formalize the problem for the cvxopt solver
     if regularization is None:
-        # Q2(a)
-        p = cvxopt_matrix(np.eye(m+1),tc='d')
-        q = cvxopt_matrix(np.zeros(m+1),tc='d')
-        g = cvxopt_matrix(y*pad,tc='d')
-        h = cvxopt_matrix(-np.ones(N),tc='d')
+        P = cvxopt_matrix(np.eye(m + 1), tc='d')  # P should be identity of size m+1
+        q = cvxopt_matrix(np.zeros(m + 1), tc='d')
+        G = cvxopt_matrix(-np.multiply(y, pad), tc='d')  # Negate y*pad for constraint
+        h = cvxopt_matrix(-np.ones(N), tc='d')
     else:
-        # Q2(c)
-        pass
+        # Incorporating regularization (Q2(c))
+        diag = np.hstack([np.ones(m), 0])  # Regularization term does not apply to bias
+        P = cvxopt_matrix(np.diag(diag), tc='d')
+        q = cvxopt_matrix(np.vstack([np.zeros((m, 1)), np.array([[regularization]])]))
+        G = cvxopt_matrix(-np.multiply(y, pad))
+        h = cvxopt_matrix(-np.ones(N))
 
-    # step 3: solve the problem using cvxopt
-    # TODO: call the cvxopt solver
-    sol = cvxopt_solvers.qp(p,q,g,h)
+    # Step 3: Solve the problem using cvxopt
+    sol = cvxopt_solvers.qp(P, q, G, h)
 
-    # step 4: convert the result and return
-    # TODO: get the w and b from the solver's solution
-    w = sol['x'][:-1]
-    b = sol['x'][-1]
+    # Step 4: Convert the result and return
+    w = np.array(sol['x'][:-1]).flatten()
+    b = np.array(sol['x'][-1]).flatten()[0]
     print(f'weights: {w}; bias: {b}')
     return w, b
+
 
 
 def solve_SVM_dual(affinities, y, regularization, folds=5):
